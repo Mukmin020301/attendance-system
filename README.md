@@ -2,6 +2,8 @@
 
 A comprehensive web-based attendance tracking system built with **React** and **Firebase**. This system enables employees to clock in/out using GPS validation and allows administrators to manage users, attendance logs, and leave requests.
 
+🔗 **Live Demo:** [https://attendance-system-aa961.web.app/](https://attendance-system-aa961.web.app/)
+
 ## 🚀 Features
 
 ### Staff Dashboard
