@@ -1,0 +1,80 @@
+# Attendance System Project Analysis
+
+## 1. Project Overview
+This is a web-based Attendance System built with **React** for the frontend and **Firebase** for the backend (Authentication and Firestore). The system is designed to track employee attendance using GPS location, enforce geofencing, and manage leave requests. It supports two distinct user roles: **Staff** and **Admin**.
+
+## 2. Technology Stack
+- **Frontend**: React.js (v19), React Router (v7)
+- **Backend / Database**: Firebase Authentication, Cloud Firestore
+- **Maps / Location**: Leaflet, React-Leaflet
+- **Styling**: Standard CSS (Modular per component)
+- **DeploymentTarget**: Firebase Hosting (implied by firebase.json)
+
+## 3. Project Structure
+The project follows a standard React application structure:
+- `src/firebase/`: Contains Firebase configuration and helper modules for Auth (`auth.js`), Firestore (`firestore.js`), and Settings (`settings.js`).
+- `src/context/`: Contains `AuthContext.js` which manages global user state and role-based access.
+- `src/pages/`: Contains the main page views.
+    - `login/`: Login page logic.
+    - `staff/`: Staff dashboard and workflows.
+    - `admin/`: Admin dashboard container and sub-views (`views/`).
+- `src/utils/`: Utility functions for device location (`getLocation.js`) and distance calculation.
+- `src/components/`: Shared UI components like `MapDisplay` and `AttendanceLogTable`.
+
+## 4. Key Modules & Features
+
+### A. Authentication & Roles
+- **Firebase Auth** is used for email/password sign-in.
+- **Role-based Access Control (RBAC)**:
+    - User roles (`staff` or `admin`) are stored in the `users` Firestore collection.
+    - `AuthContext` fetches the role upon login and directs the user to the appropriate dashboard.
+    - Protected Routes in `App.js` ensure users cannot access unauthorized pages.
+
+### B. Database Schema (Firestore)
+1.  **`users` Collection**:
+    - Stores user profiles.
+    - Fields: `name`, `email`, `role`, `isActive`, `lastActive`, `createdAt`.
+2.  **`attendance` Collection**:
+    - Stores individual punch logs.
+    - Fields: `uid`, `type` (in/out), `timestamp`, `date` (YYYY-MM-DD), `location` (lat/lng, accuracy).
+3.  **`settings` Collection**:
+    - Stores global system configuration.
+    - Document `general`: `officeLocation` (lat/lng), `radius` (meters).
+4.  **`leaves` Collection** (Inferred):
+    - Stores leave applications.
+    - Fields likely include: `uid`, `startDate`, `endDate`, `type`, `status` (pending/approved/rejected).
+
+### C. Staff Features (`StaffDashboard`)
+- **Geo-Attendance**:
+    - Uses browser Geolocation API via `getLocation` utility.
+    - Validates location accuracy and distance from office (Geofencing logic present in code).
+- **One Punch Rule**:
+    - Logic enforces a flow: Start Shift -> End Shift -> Completed.
+    - Prevents double punching or irregular sequences for the day.
+- **Leave Management**:
+    - Staff can apply for Annual, Sick, or Emergency leave.
+    - Validates leave rules (e.g., Annual leave requires 3 days advance notice).
+- **History**:
+    - View daily logs and leave application status.
+
+### D. Admin Features (`AdminDashboard`)
+- **Dashboard Overview**: Access to high-level stats (likely daily attendance counts).
+- **User Management**: Add/Edit users and manage their status (Active/Inactive).
+- **Attendance Management**: View and filter master attendance logs.
+- **Leave Requests**: Review and approve/reject staff leave applications.
+- **Settings**: Configure the Office Location (Latitude/Longitude) and allowed Geofence Radius.
+
+## 5. Data Flow
+1.  **Login**: User logs in -> AuthContext loads User Doc -> checks Role -> Redirects.
+2.  **Clock In**:
+    - `StaffDashboard` requests GPS.
+    - Checks against `settings` (Office Location).
+    - Writes to `attendance` collection with `serverTimestamp()`.
+3.  **Reporting**:
+    - Admin views query `attendance` collection, often filtering by date ranges.
+
+## 6. Security Rules (Inferred from firestore.rules)
+- Likely configured to allow:
+    - `users`: Read own doc, Admin reads all.
+    - `attendance`: Create own doc, Read own doc, Admin reads/writes all.
+    - `settings`: Read access for all (authenticated), Write access for Admin only.

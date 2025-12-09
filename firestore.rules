@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------
+    // HELPERS
+    // -------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // -------------------------------
+    // USERS COLLECTION
+    // -------------------------------
+    match /users/{userId} {
+
+      // Staff can only read their own profile
+      // Admin can read any profile
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+
+      // Allow staff to be created at signup
+      allow create: if isAuthenticated();
+
+      // Only admins can modify user data OR users can update their own data (excluding role)
+      allow update: if isAuthenticated() 
+                    && (isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])));
+    }
+
+    // -------------------------------
+    // ATTENDANCE LOGS
+    // -------------------------------
+    match /attendance/{logId} {
+      
+      // Staff can create logs but ONLY for themselves
+      allow create: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid;
+
+      // Users can read their own logs, admin reads all
+      allow read: if isAuthenticated()
+                   && (resource.data.uid == request.auth.uid || isAdmin());
+
+      // Only admin can fix or delete logs
+      allow update, delete: if isAuthenticated() && isAdmin();
+    }
+
+    // -------------------------------
+    // GLOBAL SETTINGS
+    // -------------------------------
+    match /settings/{docId} {
+      
+      // All authenticated users can read office radius/time settings
+      allow read: if isAuthenticated();
+      
+      // Only admin can change settings
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // -------------------------------
+    // LEAVES
+    // -------------------------------
+    match /leaves/{leaveId} {
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isAdmin(); // Only admin approves/rejects
+    }
+  }
+}
